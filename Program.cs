@@ -12,8 +12,12 @@ namespace winvim_меньше_говнокода
         static int line = 0;
         static int max_num = 1;
         static int top_string = 0;
+        const string separator_chars = ", ./\\'\"[]{}-=+_!@#$%^&*()№;:<>`~|";
+        static bool separator = false;
+        static string space = "";
 
         static string file_opened = "";
+        static string lang = "";
 
         static int width = Console.WindowWidth;
         static int height = Console.WindowHeight;
@@ -24,14 +28,43 @@ namespace winvim_меньше_говнокода
         static void Main(string[] args)
         {
             Console.CursorVisible = false;
-            DrawAll();
+            for (int i = 0; i < width - 1; i++)
+            {
+                space += ' ';
+            }
+            for (int i = 0; i < text.Count; i++)
+            {
+                DrawLine(i);
+            }
+            for (int i = 0; i < height - text.Count - 2; i++)
+            {
+                DrawVoidLine(space);
+            }
+            DrawInfo();
 
             while (runing == true)
             {
+                lang = "";
+                for (int i = 0; i < file_opened.Length; i++)
+                {
+                    if (file_opened[i] == '.')
+                    {
+                        lang = "";
+                    }
+                    else
+                    {
+                        lang += file_opened[i];
+                    }
+                }
+
                 if (height != Console.WindowHeight || width != Console.WindowWidth)
                 {
                     width = Console.WindowWidth;
                     height = Console.WindowHeight;
+                    for (int i = 0; i < width - 1; i++)
+                    {
+                        space += ' ';
+                    }
                 }
 
                 ConsoleKeyInfo user_input = Console.ReadKey(true);
@@ -44,8 +77,22 @@ namespace winvim_меньше_говнокода
                 {
                     Visual(user_input);
                 }
+                Console.SetCursorPosition(0, 0);
 
-                DrawAll();
+                int line_num_draw = height - 2;
+                for (int i = top_string; i < top_string + height - 2; i++)
+                {
+                    if (text.Count > i)
+                    {
+                        DrawLine(i);
+                        line_num_draw--;
+                    }
+                }
+                for (int i = 0; i < line_num_draw; i++)
+                {
+                    DrawVoidLine(space);
+                }
+                DrawInfo();
             }
         }
 
@@ -249,31 +296,6 @@ namespace winvim_меньше_говнокода
                 text[line] = update_text;
                 column++;
             }
-            else if (user_input.KeyChar == '<')//обработчик угловых скобок
-            {
-                string update_text = "";
-                for (int i = 0; i < text[line].Length + 2; i++)
-                {
-                    if (i < column)
-                    {
-                        update_text += text[line][i];
-                    }
-                    else if (i == column)
-                    {
-                        update_text += '<';
-                    }
-                    else if (i == column + 1)
-                    {
-                        update_text += '>';
-                    }
-                    else if (i > column + 1)
-                    {
-                        update_text += text[line][i - 2];
-                    }
-                }
-                text[line] = update_text;
-                column++;
-            }
             //конец "далины скобок"
             else//обработчик всего остального
             {
@@ -414,7 +436,7 @@ namespace winvim_меньше_говнокода
             else if (user_input.Key == ConsoleKey.D)//это для создания файла
             {
                 Console.CursorVisible = true;
-                Console.Write("название файла: ");
+                Console.Write("создать файл с названием: ");
                 string file_name = Console.ReadLine();
                 Console.CursorVisible = false;
                 StreamWriter file = new StreamWriter(file_name);
@@ -444,7 +466,7 @@ namespace winvim_меньше_говнокода
             else if (user_input.Key == ConsoleKey.F)
             {
                 Console.CursorVisible = true;
-                Console.Write("название файла: ");
+                Console.Write("открыть файл с названием: ");
                 string file_name = Console.ReadLine();
                 Console.CursorVisible = false;
                 file_opened = file_name;
@@ -469,75 +491,185 @@ namespace winvim_меньше_говнокода
             }
         }
 
-        //этот метод всё рисует
-        static void DrawAll()
+        //этот метод рисует не пустую строчку
+        static void DrawLine(int num_line_i)
         {
-            Console.SetCursorPosition(0, 0);
-            string space = "";
-            string space2 = "";
-            string space3 = "";
-            for (int i = 0; i < width - 1; i++)
+
+            //это рисует номер строчки
+            string space_num_line = new string(' ', max_num - (num_line_i + 1).ToString().Length);
+
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write($"{num_line_i + 1}{space_num_line}|");
+            Console.ResetColor();
+
+            string space_line = new string(' ', width - text[num_line_i].Length - max_num - 2);
+
+            //тут рисуется строчка в которой находится курсор
+            if (num_line_i == line)
             {
-                space2 += ' ';
-            }
-            for (int i = top_string; i < top_string + height - 2; i++)
-            {
-                if (text.Count > i)
+                string word = "";
+                List<string> words = [];
+                List<int> num_words = [];
+
+                for (int i = 0; i < text[num_line_i].Length; i++)
                 {
-                    int i2 = max_num - (i + 1).ToString().Length;
-                    space = "";
-                    for (int j = 0; j < i2; j++)
+                    separator = SeparatorChar(text[num_line_i][i]);
+                    
+                    if (separator == false)
                     {
-                        space += ' ';
+                        word += text[num_line_i][i];
                     }
-
-                    Console.Write($"{i + 1}{space}|");
-                    for (int j = 0; j < width - max_num - 1; j++)
+                    else
                     {
-                        if (text[i].Length > j) 
+                        if (word != "")
                         {
-                            if (line == i)
-                            {
-                                if (column == j)
-                                {
-                                    Console.BackgroundColor = ConsoleColor.Gray;
-                                    Console.ForegroundColor = ConsoleColor.Black;
-                                }
-
-                                Console.Write($"{text[i][j]}");
-
-                                Console.ResetColor();
-                            }
-                            else
-                            {
-                                Console.Write($"{text[i]}");
-                                j = text[i].Length;
-                            }
-                        }
-                        else
-                        {
-                            space3 += ' ';
+                            words.Add(word);
+                            num_words.Add(i - word.Length);
+                            word = "";
                         }
                     }
                 }
-                else
-                {
-                    Console.Write($"~{space2}");
+
+                for (int i = 0; i < text[num_line_i].Length; i++)
+                {   
+                    for (int j = 0; j < words.Count; j++)
+                    {
+                        if (i >= num_words[j] && i < num_words[j] + words[j].Length)
+                        {
+                            if (IsWordColored(words[j], text[num_line_i][num_words[j] + words[j].Length]) == 0)
+                            {
+                                Console.ForegroundColor = ConsoleColor.Gray;
+                            }
+                            else if (IsWordColored(words[j], text[num_line_i][num_words[j] + words[j].Length]) == 2)
+                            {
+                                Console.ForegroundColor = ConsoleColor.Blue;
+                            }
+                            else if (IsWordColored(words[j], text[num_line_i][num_words[j] + words[j].Length]) == 1)
+                            {
+                                Console.ForegroundColor = ConsoleColor.Red;
+                            }
+                        }
+                    }
+                    if (column == i)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Black;
+                        Console.BackgroundColor = ConsoleColor.Gray;
+                    }
+                    Console.Write($"{text[num_line_i][i]}");
+
+                    Console.ResetColor();
                 }
-                Console.Write($"{space3}");
-                space3 = "";
-                Console.Write("\n");
+                Console.Write($"{space_line}\n");
             }
 
-            Console.Write("MODE: ");
+            //тут рисуется строчка в которой нету курсора
+            else
+            {
+                string word = "";
+                string words = "";
+                for (int i = 0; i < text[num_line_i].Length; i++)
+                {
+                    separator = false;
+                    for (int j = 0; j < separator_chars.Length; j++)
+                    {
+                        if (text[num_line_i][i] == separator_chars[j])
+                        {
+                            separator = true;
+                            break;
+                        }
+                    }
+                    if (separator == true)
+                    {
+                        if (IsWordColored(word, text[num_line_i][i]) == 0)
+                        {
+                            words += word + text[num_line_i][i];  
+                        }
+                        else if (IsWordColored(word, text[num_line_i][i]) == 2)
+                        {
+                            Console.Write($"{words}");
+
+                            Console.ForegroundColor = ConsoleColor.Blue;
+                            Console.Write($"{word}");
+                            Console.ResetColor();
+                            Console.Write($"{text[num_line_i][i]}");
+                            words = "";
+                        }
+                        else if (IsWordColored(word, text[num_line_i][i]) == 1)
+                        {
+                            Console.Write($"{words}");
+
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Write($"{word}");
+                            Console.ResetColor();
+                            Console.Write($"{text[num_line_i][i]}");
+                            words = "";
+                        }
+                        word = "";
+                    }
+                    else
+                    {
+                        word += text[num_line_i][i];
+                    }
+                }
+                Console.Write($"{words}{space_line}\n");
+            }
+        }
+
+        //этот метод рисует пустую строчку
+        static void DrawVoidLine(string space)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write($"~{space}");
+            Console.ResetColor();
+        }
+
+        static int IsWordColored(string word, char select_char)
+        {
+            int true_false = 0;
+            if (lang == "py")
+            {
+                if (select_char == '(')
+                {
+                    true_false = 2;
+                }
+                for (int i = 0; i < key_words.python.Length; i++)
+                {
+                    if (word == key_words.python[i])
+                    {
+                        true_false = 1;
+                        break;
+                    }
+                }
+            }
+
+            return true_false;
+        }
+
+        static void DrawInfo()
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
             if (mode == 'i')
             {
-                Console.Write("Insert ");
+                Console.Write("MODE: Insert|");
             }
             else if (mode == 'v')
             {
-                Console.Write("Visible ");
+                Console.Write("MODE: Visual|");
             }
+            Console.ResetColor();
+        }
+
+        static bool SeparatorChar(char char_selection)
+        {
+            for (int i = 0; i < separator_chars.Length; i++)
+            {
+                if (char_selection == separator_chars[i])
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
