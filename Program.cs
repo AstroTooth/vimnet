@@ -1,5 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.Design;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace winvim_меньше_говнокода
 {
@@ -15,6 +18,16 @@ namespace winvim_меньше_говнокода
         const string separator_chars = ", ./\\'\"[]{}-=+_!@#$%^&*()№;:<>`~|";
         static bool separator = false;
         static string space = "";
+        static bool quotes = false;
+        static int comment = 0;
+        static string comment_words = "";
+        static int comment_timer = 0;
+        static int left_char = 0;
+        static bool printing = true;
+        static bool printing_end_word = true;
+        static bool first_char = true;
+        static int first_char_num;
+        static List<string> text2 = [" "];
 
         static string file_opened = "";
         static string lang = "";
@@ -34,6 +47,7 @@ namespace winvim_меньше_говнокода
             }
             for (int i = 0; i < text.Count; i++)
             {
+                printing_end_word = true;
                 DrawLine(i);
             }
             for (int i = 0; i < height - text.Count - 2; i++)
@@ -93,6 +107,8 @@ namespace winvim_меньше_говнокода
                     DrawVoidLine(space);
                 }
                 DrawInfo();
+                comment = 0;
+                comment_timer = 0;
             }
         }
 
@@ -146,6 +162,7 @@ namespace winvim_меньше_говнокода
 
                 line++;
                 column = 0;
+                left_char = 0;
             }
             else if (user_input.Key == ConsoleKey.Backspace)//обработчик для Бэкспэйс
             {
@@ -161,6 +178,10 @@ namespace winvim_меньше_говнокода
                     }
                     text[line] = text2;
                     column--;
+                    if (column >= width - max_num - 5)
+                    {
+                        left_char--;
+                    }
                 }
                 else if (line != 0)
                 {
@@ -196,6 +217,15 @@ namespace winvim_меньше_говнокода
                     {
                         max_num--;
                     }
+
+                    if (column >= width - max_num - 2) 
+                    {
+                        left_char = column - (width - max_num - 2);
+                    }
+                    else
+                    {
+                        left_char = 0;
+                    }
                 }
             }
             else if (user_input.Key == ConsoleKey.Tab)//обработчик табуляции
@@ -219,6 +249,11 @@ namespace winvim_меньше_говнокода
 
                 text[line] = update_text;
                 column += 4;
+
+                if (width - max_num - 2 <= column)
+                {
+                    left_char += 4;
+                }
             }
             //дальше идёт "далина скобок"
             else if (user_input.KeyChar == '(')//обработчик круглых скобок
@@ -245,6 +280,11 @@ namespace winvim_меньше_говнокода
                 }
                 text[line] = update_text;
                 column++;
+
+                if (column >= width - max_num - 2)
+                {
+                    left_char += 2;
+                }
             }
             else if (user_input.KeyChar == '[')//обработчик квадратных скобок
             {
@@ -270,6 +310,11 @@ namespace winvim_меньше_говнокода
                 }
                 text[line] = update_text;
                 column++;
+
+                if (column >= width - max_num - 2)
+                {
+                    left_char += 2;
+                }
             }
             else if (user_input.KeyChar == '{')//обработчик фигурных скобок
             {
@@ -295,6 +340,11 @@ namespace winvim_меньше_говнокода
                 }
                 text[line] = update_text;
                 column++;
+
+                if (column >= width - max_num - 2)
+                {
+                    left_char += 2;
+                }
             }
             //конец "далины скобок"
             else//обработчик всего остального
@@ -361,6 +411,11 @@ namespace winvim_меньше_говнокода
                 }
                 text[line] = update_text;
                 column++;
+
+                if (column >= width - max_num - 2)
+                {
+                    left_char++;
+                }
             }
         }
 
@@ -376,6 +431,10 @@ namespace winvim_меньше_говнокода
                 if (column != 0)
                 {
                     column--;
+                    if (column == left_char && column != 0)
+                    {
+                        left_char--;
+                    }
                 }
                 else if (line != 0)
                 {
@@ -384,6 +443,14 @@ namespace winvim_меньше_говнокода
                     if (line + 1 == top_string)
                     {
                         top_string--;
+                    }
+                    if (column > width - max_num - 2)
+                    {
+                        left_char = column - (width - max_num - 2);
+                    }
+                    else
+                    {
+                        left_char = 0;
                     }
                 }
             }
@@ -400,6 +467,14 @@ namespace winvim_меньше_говнокода
                     {
                         top_string--;
                     }
+                    if (column > width - max_num - 2)
+                    {
+                        left_char = column - (width - max_num - 2);
+                    }
+                    else
+                    {
+                        left_char = 0;
+                    }
                 }
             }
             else if (user_input.Key == ConsoleKey.K)//это для перемещения курсора вниз
@@ -415,6 +490,14 @@ namespace winvim_меньше_говнокода
                     {
                         top_string++;
                     }
+                    if (column > width - max_num - 2)
+                    {
+                        left_char = column - (width - max_num - 2);
+                    }
+                    else
+                    {
+                        left_char = 0;
+                    }
                 }
             }
             else if (user_input.Key == ConsoleKey.L)//это для перемещения курсора впрво
@@ -422,6 +505,10 @@ namespace winvim_меньше_говнокода
                 if (text[line].Count() - 1 != column)
                 {
                     column++;
+                    if (column == left_char + (width - max_num - 2))
+                    {
+                        left_char++;
+                    }
                 }
                 else if (line != text.Count - 1)
                 {
@@ -431,25 +518,30 @@ namespace winvim_меньше_говнокода
                     {
                         top_string++;
                     }
+                    left_char = 0;
                 }
             }
-            else if (user_input.Key == ConsoleKey.D)//это для создания файла
+            else if (user_input.Key == ConsoleKey.E)//это для создания файла
             {
                 Console.CursorVisible = true;
-                Console.Write("создать файл с названием: ");
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.Write("create file: ");
+                Console.ResetColor();
                 string file_name = Console.ReadLine();
-                Console.CursorVisible = false;
-                StreamWriter file = new StreamWriter(file_name);
-                text.Clear();
-                text.Add(" ");
-                column = 0;
-                line = 0;
-                file.Close();
+                if (file_name != "none") {
+                    StreamWriter file = new StreamWriter(file_name);
+                    text.Clear();
+                    text.Add(" ");
+                    column = 0;
+                    line = 0;
+                    file.Close();
 
+                    file_opened = file_name;
+                }
+                Console.CursorVisible = false;
                 Console.Clear();
-                file_opened = file_name;
             }
-            else if (user_input.Key == ConsoleKey.S)
+            else if (user_input.Key == ConsoleKey.W) //сохранение файла
             {
                 if (file_opened != "")
                 {
@@ -461,33 +553,73 @@ namespace winvim_меньше_говнокода
                     }
 
                     file.Close();
+
+                    text2 = text;
                 }
             }
-            else if (user_input.Key == ConsoleKey.F)
+            else if (user_input.Key == ConsoleKey.R) //это для открытия файла
             {
                 Console.CursorVisible = true;
-                Console.Write("открыть файл с названием: ");
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.Write("open file: ");
+                Console.ResetColor();
                 string file_name = Console.ReadLine();
+                if (file_name != "none") {
+                    file_opened = file_name;
+
+                    text.Clear();
+                    column = 0;
+                    line = 0;
+
+                    StreamReader file = new StreamReader(file_name);
+
+                    string read_line = file.ReadLine();
+
+                    while (read_line != null)
+                    {
+                        text.Add(read_line);
+
+                        if (text[text.Count - 1][read_line.Length - 1] != ' ')
+                        {
+                            text[text.Count - 1] += ' ';
+                        }
+
+                        read_line = file.ReadLine();
+                    }
+
+                    file.Close();
+                }
                 Console.CursorVisible = false;
-                file_opened = file_name;
-
-                text.Clear();
-                column = 0;
-                line = 0;
-
-                StreamReader file = new StreamReader(file_name);
-
-                string read_line = file.ReadLine();
-
-                while (read_line != null)
+                Console.Clear();
+            }
+            else if (user_input.Key == ConsoleKey.Q)
+            {
+                if (text != text2)
                 {
-                    text.Add(read_line);
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.Write("save file? (y\\n): ");
+                    Console.ResetColor();
+                    Console.CursorVisible = true;
+                    string y_n = Console.ReadLine();
+                    Console.CursorVisible = false;
 
-                    read_line = file.ReadLine();
+                    if (y_n == "y")
+                    {
+                        if (file_opened != "")
+                        {
+                            StreamWriter file = new StreamWriter(file_opened);
+
+                            for (int i = 0; i < text.Count; i++)
+                            {
+                                file.WriteLine(text[i]);
+                            }
+
+                            file.Close();
+                        }
+                    }
                 }
 
-                file.Close();
-                Console.Clear();
+                runing = false;
             }
         }
 
@@ -502,117 +634,294 @@ namespace winvim_меньше_говнокода
             Console.Write($"{num_line_i + 1}{space_num_line}|");
             Console.ResetColor();
 
-            string space_line = new string(' ', width - text[num_line_i].Length - max_num - 2);
-
-            //тут рисуется строчка в которой находится курсор
-            if (num_line_i == line)
+            string space_line = " ";
+            if (text[num_line_i].Length + max_num + 2 < width)
             {
-                string word = "";
-                List<string> words = [];
-                List<int> num_words = [];
+                space_line = new string(' ', width - text[num_line_i].Length - max_num - 2);
+            }
 
-                for (int i = 0; i < text[num_line_i].Length; i++)
+            //тут рисуется строчка
+            var words = new StringBuilder();
+            string word = "";
+
+            for (int i = 0; i < text[num_line_i].Length; i++)
+            {
+                if (line == num_line_i) 
                 {
-                    separator = SeparatorChar(text[num_line_i][i]);
-                    
-                    if (separator == false)
+                    if (i >= left_char && i <= left_char + width - max_num - 4)
                     {
-                        word += text[num_line_i][i];
+                        printing = true;
                     }
                     else
                     {
-                        if (word != "")
-                        {
-                            words.Add(word);
-                            num_words.Add(i - word.Length);
-                            word = "";
-                        }
+                        printing = false;
                     }
                 }
-
-                for (int i = 0; i < text[num_line_i].Length; i++)
-                {   
-                    for (int j = 0; j < words.Count; j++)
-                    {
-                        if (i >= num_words[j] && i < num_words[j] + words[j].Length)
-                        {
-                            if (IsWordColored(words[j], text[num_line_i][num_words[j] + words[j].Length]) == 0)
-                            {
-                                Console.ForegroundColor = ConsoleColor.Gray;
-                            }
-                            else if (IsWordColored(words[j], text[num_line_i][num_words[j] + words[j].Length]) == 2)
-                            {
-                                Console.ForegroundColor = ConsoleColor.Blue;
-                            }
-                            else if (IsWordColored(words[j], text[num_line_i][num_words[j] + words[j].Length]) == 1)
-                            {
-                                Console.ForegroundColor = ConsoleColor.Red;
-                            }
-                        }
-                    }
-                    if (column == i)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Black;
-                        Console.BackgroundColor = ConsoleColor.Gray;
-                    }
-                    Console.Write($"{text[num_line_i][i]}");
-
-                    Console.ResetColor();
-                }
-                Console.Write($"{space_line}\n");
-            }
-
-            //тут рисуется строчка в которой нету курсора
-            else
-            {
-                string word = "";
-                string words = "";
-                for (int i = 0; i < text[num_line_i].Length; i++)
+                else
                 {
-                    separator = false;
-                    for (int j = 0; j < separator_chars.Length; j++)
+                    if (i >= width - max_num - 3)
                     {
-                        if (text[num_line_i][i] == separator_chars[j])
-                        {
-                            separator = true;
-                            break;
-                        }
+                        printing = false;
                     }
-                    if (separator == true)
+                    else
                     {
-                        if (IsWordColored(word, text[num_line_i][i]) == 0)
-                        {
-                            words += word + text[num_line_i][i];  
-                        }
-                        else if (IsWordColored(word, text[num_line_i][i]) == 2)
-                        {
-                            Console.Write($"{words}");
-
-                            Console.ForegroundColor = ConsoleColor.Blue;
-                            Console.Write($"{word}");
-                            Console.ResetColor();
-                            Console.Write($"{text[num_line_i][i]}");
-                            words = "";
-                        }
-                        else if (IsWordColored(word, text[num_line_i][i]) == 1)
-                        {
-                            Console.Write($"{words}");
-
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.Write($"{word}");
-                            Console.ResetColor();
-                            Console.Write($"{text[num_line_i][i]}");
-                            words = "";
-                        }
+                        printing = true;
+                    }
+                }
+                if (comment == 0)
+                {
+                    if (SeparatorChar(text[num_line_i][i]) == true)
+                    {
+                        first_char = true;
                         word = "";
+                        if (i == 0)
+                        {
+                            Quotes(text[num_line_i][i], text[num_line_i][i], true);
+                        }
+                        else
+                        {
+                            Quotes(text[num_line_i][i], text[num_line_i][i - 1], false);
+                        }
+
+                        if (quotes == true)
+                        {
+                            if (text[num_line_i].Length >= 3 && i <= text[num_line_i].Length - 3 && text[num_line_i].Substring(i, 3) == "'''" && comment_timer == 0)
+                            {
+                                comment = 2;
+                                comment_timer = 6;
+                                if (num_line_i == line && column == i)
+                                {
+                                    words.Append("\x1b[0;30;47m");
+                                    words.Append(text[num_line_i][i]);
+                                    words.Append("\x1b[0;37;40m");
+                                }
+                                else if (printing == true)
+                                {
+                                    words.Append("\x1b[1;33m");
+                                    words.Append(text[num_line_i][i]);
+                                }
+                            }
+                            else
+                            {
+                                if (num_line_i == line && column == i)
+                                {
+                                    words.Append("\x1b[0;30;47m");
+                                    words.Append(text[num_line_i][i]);
+                                    words.Append("\x1b[0;37;40m");
+                                }
+                                else if(printing == true)
+                                {
+                                    words.Append("\x1b[1;32m");
+                                    words.Append(text[num_line_i][i]);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (text[num_line_i][i] == '"' && i != 1 || text[num_line_i][i] == '\'' && i != 1)
+                            {
+                                if (text[num_line_i][i - 1] != '\\')
+                                {
+                                    if (num_line_i == line && column == i)
+                                    {
+                                        words.Append("\x1b[0;30;47m");
+                                    }
+                                    else
+                                    {
+                                        words.Append("\x1b[1;32m");
+                                    }
+                                }
+                                else
+                                {
+                                    if (num_line_i == line && column == i)
+                                    {
+                                        words.Append("\x1b[0;30;47m");
+                                    }
+                                    else
+                                    {
+                                        words.Append("\x1b[1;37m");
+                                    }
+                                }
+                            }
+                            else if (text[num_line_i][i] == '#' && lang == "py")
+                            {
+                                comment = 1;
+                                if (num_line_i == line && column == i)
+                                {
+                                    words.Append("\x1b[0;30;47m");
+                                }
+                                else
+                                {
+                                    words.Append("\x1b[1;33m");
+                                }
+                            }
+                            else
+                            {
+                                if (num_line_i == line && column == i)
+                                {
+                                    words.Append("\x1b[0;30;47m");
+                                }
+                                else
+                                {
+                                    words.Append("\x1b[1;37m");
+                                }
+                            }
+                            if (printing == true)
+                            {
+                                words.Append(text[num_line_i][i]);
+                            }
+                            words.Append("\x1b[1;37;40m");
+                        }
                     }
                     else
                     {
-                        word += text[num_line_i][i];
+                        if (quotes == true)
+                        {
+                            if (num_line_i == line && column == i)
+                            {
+                                words.Append("\x1b[0;30;47m");
+                                words.Append(text[num_line_i][i]);
+                                words.Append("\x1b[0;37;40m");
+                            }
+                            else if (printing == true)
+                            {
+                                words.Append("\x1b[1;32m");
+                                words.Append(text[num_line_i][i]);
+                            }
+                        }
+                        else
+                        {
+                            if (first_char == true)
+                            {
+                                first_char = false;
+                                first_char_num = i;
+                                for (int j = i; j < text[num_line_i].Length; j++)
+                                {
+                                    if (SeparatorChar(text[num_line_i][j]) == false)
+                                    {
+                                        word += text[num_line_i][j];
+                                    }
+                                    else
+                                    {
+                                        break;
+                                    }
+                                }
+                            }
+                            if (IsWordColored(word, text[num_line_i][first_char_num + word.Length]) == 0)
+                            {
+                                if (num_line_i == line && column == i)
+                                {
+                                    words.Append("\x1b[0;30;47m");
+                                    words.Append(text[num_line_i][i]);
+                                    words.Append("\x1b[0;37;40m");
+                                }
+                                else if (printing == true)
+                                {
+                                    words.Append("\x1b[1;37m");
+                                    words.Append(text[num_line_i][i]);
+                                }
+                            }
+                            else if (IsWordColored(word, text[num_line_i][first_char_num + word.Length]) == 2)
+                            {
+                                if (num_line_i == line && column == i)
+                                {
+                                    words.Append("\x1b[0;30;47m");
+                                    words.Append(text[num_line_i][i]);
+                                    words.Append("\x1b[0;37;40m");
+                                }
+                                else if (printing == true)
+                                {
+                                    words.Append("\x1b[1;34m");
+                                    words.Append(text[num_line_i][i]);
+                                }
+                            }
+                            else if (IsWordColored(word, text[num_line_i][first_char_num + word.Length]) == 1)
+                            {
+                                if (num_line_i == line && column == i)
+                                {
+                                    words.Append("\x1b[0;30;47m");
+                                    words.Append(text[num_line_i][i]);
+                                    words.Append("\x1b[0;37;40m");
+                                }
+                                else if (printing == true)
+                                {
+                                    words.Append("\x1b[1;31m");
+                                    words.Append(text[num_line_i][i]);
+                                }
+                            }
+                        }
+                    }
+
+                    if (comment_timer != 0)
+                    {
+                        comment_timer--;
                     }
                 }
-                Console.Write($"{words}{space_line}\n");
+                else if (comment == 1)
+                {
+                    if (num_line_i == line && column == i)
+                    {
+                        words.Append("\x1b[0;30;47m");
+                        words.Append(text[num_line_i][i]);
+                        words.Append("\x1b[0;37;40m");
+                    }
+                    else if (printing == true)
+                    {
+                        words.Append("\x1b[0;33m");
+                        words.Append(text[num_line_i][i]);
+                    }
+                }
+                else if (comment == 2)
+                {
+                    if (num_line_i == line && column == i)
+                    {
+                        words.Append("\x1b[0;30;47m");
+                        words.Append(text[num_line_i][i]);
+                        words.Append("\x1b[0;37;40m");
+                    }
+                    else if (printing == true)
+                    {
+                        words.Append("\x1b[1;33m");
+                        words.Append(text[num_line_i][i]);
+                    }
+
+                    if (comment_timer != 0)
+                    {
+                        comment_timer--;
+                    }
+
+                    if (text[num_line_i].Length >= 3 && i <= text[num_line_i].Length - 3)
+                    {
+                        if (text[num_line_i].Substring(i, 3) == "'''" && comment_timer == 0)
+                        {
+                            for (int j = 0; j < 2; j++)
+                            {
+                                if (num_line_i == line && column == i + 1 + j)
+                                {
+                                    words.Append("\x1b[0;30;47m");
+                                    words.Append("'");
+                                    words.Append("\x1b[0;37;40m");
+                                }
+                                else if (printing == true)
+                                {
+                                    words.Append("\x1b[1;33m");
+                                    words.Append("'");
+                                }
+                            }
+                            i += 2;
+                            comment = 0;
+                        }
+                    }
+                }
             }
+
+            Console.Write($"{words.ToString()}{space_line}\n");
+
+            if (comment == 1)
+            {
+                comment = 0;
+            }
+            quotes = false;
         }
 
         //этот метод рисует пустую строчку
@@ -623,28 +932,28 @@ namespace winvim_меньше_говнокода
             Console.ResetColor();
         }
 
+        //этот метод решает цвет подсветки
         static int IsWordColored(string word, char select_char)
         {
-            int true_false = 0;
             if (lang == "py")
             {
                 if (select_char == '(')
                 {
-                    true_false = 2;
+                    return 2;
                 }
                 for (int i = 0; i < key_words.python.Length; i++)
                 {
                     if (word == key_words.python[i])
                     {
-                        true_false = 1;
-                        break;
+                        return 1;
                     }
                 }
             }
 
-            return true_false;
+            return 0;
         }
 
+        //этот метод отображает полезную информацию
         static void DrawInfo()
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
@@ -659,6 +968,7 @@ namespace winvim_меньше_говнокода
             Console.ResetColor();
         }
 
+        //этот метод говорит является ли выбраный символ частью слова
         static bool SeparatorChar(char char_selection)
         {
             for (int i = 0; i < separator_chars.Length; i++)
@@ -668,8 +978,41 @@ namespace winvim_меньше_говнокода
                     return true;
                 }
             }
-
+            
             return false;
+        }
+
+        //метод подсветки кавычек
+        static void Quotes(char char1, char char2, bool first_char)
+        {
+            if (char1 == '"' || char1 == '\'')
+            {
+                if (first_char == true)
+                {
+                    if (quotes == true)
+                    {
+                        quotes = false;
+                    }
+                    else
+                    {
+                        quotes = true;
+                    }
+                }
+                else
+                {
+                    if (char2 != '\\')
+                    {
+                        if (quotes == true)
+                        {
+                            quotes = false;
+                        }
+                        else
+                        {
+                            quotes = true;
+                        }
+                    }
+                }
+            }
         }
     }
 }
